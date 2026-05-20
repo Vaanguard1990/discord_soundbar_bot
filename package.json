@@ -1,0 +1,23 @@
+{
+  "name": "discord-soundboard-v6",
+  "version": "6.0.0",
+  "description": "Soundboard Discord multi-server con OAuth e upload suoni via web",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@discordjs/voice": "1.0.0-dev.1772884937-84b85f4c9",
+    "@noble/ciphers": "^2.2.0",
+    "@stablelib/xchacha20poly1305": "^2.0.1",
+    "discord.js": "^14.15.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
+    "express-session": "^1.18.0",
+    "ffmpeg-static": "^5.2.0",
+    "libsodium-wrappers": "^0.7.16",
+    "multer": "^1.4.5-lts.1",
+    "opusscript": "^0.1.1"
+  }
+}

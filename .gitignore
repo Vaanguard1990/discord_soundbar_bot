@@ -1,0 +1,28 @@
+# Dipendenze
+node_modules/
+
+# File sensibili
+.env
+
+# Log
+access.log
+access.log.old
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*~
+
+# Suoni audio caricati dall'utente (rimangono solo sulla VM)
+sounds/*
+!sounds/.gitkeep
+
+# Build / cache
+*.pid
+.cache/

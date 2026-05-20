@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Soundboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@400;600;700;900&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:#0a0c0f; --panel:#111418; --border:#1e2530;
+    --accent:#00ff88; --accent2:#00ccff; --danger:#ff3b5c;
+    --muted:#3a4555; --text:#d4dce8; --text-dim:#5a6a80;
+    --font-mono:'Share Tech Mono',monospace;
+    --font-ui:'Barlow Condensed',sans-serif;
+    --glow:0 0 12px rgba(0,255,136,0.35);
+    --glow2:0 0 12px rgba(0,204,255,0.35);
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:var(--font-ui);min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden}
+  body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.07) 2px,rgba(0,0,0,0.07) 4px);pointer-events:none;z-index:999}
+
+  /* Header */
+  header{display:flex;align-items:center;justify-content:space-between;padding:12px 24px;background:var(--panel);border-bottom:1px solid var(--border);gap:16px;flex-wrap:wrap}
+  .logo{display:flex;align-items:center;gap:12px}
+  .logo-icon{width:32px;height:32px;background:var(--accent);border-radius:6px;display:grid;place-items:center;font-size:16px;color:#000;box-shadow:var(--glow)}
+  .logo-text{font-size:20px;font-weight:900;letter-spacing:4px;color:var(--accent);text-shadow:var(--glow)}
+  .logo-sub{font-family:var(--font-mono);font-size:9px;color:var(--text-dim);letter-spacing:2px}
+
+  .header-right{display:flex;align-items:center;gap:16px}
+  .bot-status{display:flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:11px;color:var(--text-dim)}
+  .status-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);transition:all 0.3s}
+  .status-dot.online{background:var(--accent);box-shadow:var(--glow)}
+  .status-dot.playing{background:var(--accent2);box-shadow:var(--glow2);animation:pulse 1s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+
+  .vu-bars{display:flex;gap:3px;align-items:flex-end;height:16px}
+  .vu-bar{width:3px;background:var(--accent2);border-radius:1px;animation:vu 0.6s ease-in-out infinite alternate}
+  .vu-bar:nth-child(1){animation-delay:0s;height:40%}.vu-bar:nth-child(2){animation-delay:0.1s;height:80%}
+  .vu-bar:nth-child(3){animation-delay:0.2s;height:60%}.vu-bar:nth-child(4){animation-delay:0.05s;height:100%}
+  .vu-bar:nth-child(5){animation-delay:0.15s;height:50%}
+  @keyframes vu{from{transform:scaleY(0.3)}to{transform:scaleY(1)}}
+  .vu-bars.hidden{display:none}
+
+  .user-info{display:flex;align-items:center;gap:10px;padding-left:16px;border-left:1px solid var(--border)}
+  .user-avatar{width:28px;height:28px;border-radius:50%;background:var(--accent);color:#000;display:grid;place-items:center;font-weight:900;font-size:12px;font-family:var(--font-ui)}
+  .user-avatar img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+  .user-name{font-family:var(--font-mono);font-size:11px;color:var(--text);letter-spacing:1px}
+  .owner-badge{background:var(--accent);color:#000;font-size:9px;padding:1px 6px;border-radius:3px;font-weight:900;margin-left:4px;letter-spacing:1px}
+  .btn-icon{background:transparent;border:1px solid var(--border);color:var(--text-dim);width:30px;height:30px;border-radius:6px;font-size:14px;cursor:pointer;display:grid;place-items:center;transition:all 0.15s}
+  .btn-icon:hover{border-color:var(--accent);color:var(--accent)}
+  .btn-icon.danger:hover{border-color:var(--danger);color:var(--danger)}
+  .btn-icon.active{border-color:var(--accent);color:var(--accent);background:rgba(0,255,136,0.1)}
+  .btn-icon.active.hotkey{border-color:#ffaa00;color:#ffaa00;background:rgba(255,170,0,0.1)}
+
+  /* Banner istanza TEST/PROD */
+  .instance-badge{position:fixed;top:0;left:0;right:0;text-align:center;font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:3px;padding:4px;z-index:1000;display:none}
+  .instance-badge.show{display:block}
+  .instance-badge.test{background:#ff8800;color:#000}
+  .instance-badge.prod{background:#00cc44;color:#000}
+  body.has-instance-badge{padding-top:24px}
+
+  /* Hotkey badge sul pad */
+  .pad-hotkey{position:absolute;top:6px;left:8px;font-family:var(--font-mono);font-size:8px;color:#ffaa00;background:rgba(255,170,0,0.1);border:1px solid #ffaa00;border-radius:3px;padding:1px 4px;letter-spacing:1px;font-weight:700;max-width:70%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pad-hotkey.capturing{color:var(--accent2);border-color:var(--accent2);background:rgba(0,204,255,0.15);animation:pulse-hk 0.8s infinite}
+  @keyframes pulse-hk{0%,100%{opacity:1}50%{opacity:0.5}}
+  .pad-hk-btn{position:absolute;bottom:4px;right:4px;background:transparent;border:1px solid var(--border);color:var(--text-dim);width:22px;height:22px;border-radius:4px;font-size:10px;cursor:pointer;display:grid;place-items:center;opacity:0;transition:opacity 0.15s,color 0.15s,border-color 0.15s}
+  .sound-btn:hover .pad-hk-btn{opacity:1}
+  .pad-hk-btn:hover{color:#ffaa00;border-color:#ffaa00}
+  .pad-hk-btn.assigned{opacity:1;color:#ffaa00;border-color:rgba(255,170,0,0.5)}
+
+  /* Hotkey triggering animation */
+  .sound-btn.hk-fire{animation:fire 0.4s ease-out}
+  @keyframes fire{0%{box-shadow:0 0 0 0 rgba(255,170,0,0.6)}100%{box-shadow:0 0 0 20px rgba(255,170,0,0)}}
+
+  /* Server selector bar */
+  .server-bar{background:var(--panel);border-bottom:1px solid var(--border);padding:10px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .server-label{font-family:var(--font-mono);font-size:10px;color:var(--text-dim);letter-spacing:2px}
+  .server-select{background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px 30px 8px 12px;font-family:var(--font-ui);font-size:13px;font-weight:600;appearance:none;cursor:pointer;min-width:240px}
+  .server-select:focus{outline:none;border-color:var(--accent)}
+  .server-wrap{position:relative}
+  .server-wrap::after{content:'▼';position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--text-dim);font-size:10px;pointer-events:none}
+
+  /* Main */
+  main{display:grid;grid-template-columns:280px 1fr;flex:1;min-height:0}
+  aside{background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column}
+  .section{padding:18px 20px;border-bottom:1px solid var(--border)}
+  .section-title{font-family:var(--font-mono);font-size:10px;letter-spacing:3px;color:var(--text-dim);text-transform:uppercase;margin-bottom:12px}
+
+  select.ch{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:10px 30px 10px 12px;font-family:var(--font-ui);font-size:13px;font-weight:600;appearance:none;cursor:pointer}
+  select.ch:focus{outline:none;border-color:var(--accent)}
+  .ch-wrap{position:relative}
+  .ch-wrap::after{content:'▼';position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--text-dim);font-size:10px;pointer-events:none}
+
+  .btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;border:1px solid var(--border);border-radius:6px;font-family:var(--font-ui);font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:all 0.15s;width:100%;margin-top:8px}
+  .btn-connect{background:rgba(0,255,136,0.08);color:var(--accent);border-color:var(--accent)}
+  .btn-connect:hover{background:rgba(0,255,136,0.18);box-shadow:var(--glow)}
+  .btn-disconnect{background:rgba(255,59,92,0.08);color:var(--danger);border-color:var(--danger)}
+  .btn-disconnect:hover{background:rgba(255,59,92,0.18)}
+  .btn-stop{background:rgba(255,59,92,0.12);color:var(--danger);border-color:var(--danger);font-size:14px}
+  .btn-reload{background:rgba(0,204,255,0.08);color:var(--accent2);border-color:var(--accent2)}
+  .btn-reload:hover{background:rgba(0,204,255,0.18)}
+  .btn-manage{background:rgba(255,170,0,0.08);color:#ffaa00;border-color:#ffaa00}
+  .btn-manage:hover{background:rgba(255,170,0,0.18)}
+  .btn-admin{background:rgba(255,215,0,0.08);color:#ffd700;border-color:#ffd700}
+  .btn-admin:hover{background:rgba(255,215,0,0.16)}
+  .btn:disabled{opacity:0.4;cursor:not-allowed}
+
+  .conn-info{font-family:var(--font-mono);font-size:10px;margin-top:10px;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text-dim);line-height:1.8}
+  .conn-info .val{color:var(--accent)}
+  .conn-info .val.blue{color:var(--accent2)}
+
+  .now-playing{padding:14px 20px;border-bottom:1px solid var(--border);font-family:var(--font-mono)}
+  .np-label{font-size:9px;letter-spacing:3px;color:var(--text-dim);text-transform:uppercase;margin-bottom:6px}
+  .np-name{font-size:14px;color:var(--accent2);text-shadow:var(--glow2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:18px}
+  .np-name.idle{color:var(--muted);font-size:11px}
+
+  /* Grid */
+  .grid-area{padding:20px;overflow-y:auto}
+  .grid-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+  .grid-title{font-size:11px;font-family:var(--font-mono);letter-spacing:3px;color:var(--text-dim);text-transform:uppercase}
+  .grid-count{font-family:var(--font-mono);font-size:10px;color:var(--accent)}
+  .sounds-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px}
+
+  .sound-btn{aspect-ratio:1;background:var(--panel);border:1px solid var(--border);border-radius:8px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:12px;transition:all 0.15s;position:relative;overflow:hidden}
+  .sound-btn:hover{border-color:var(--accent);transform:translateY(-2px)}
+  .sound-btn:active{transform:scale(0.95)}
+  .sound-btn.playing{border-color:var(--accent2);box-shadow:var(--glow2)}
+  .sound-btn.disabled{opacity:0.3;cursor:not-allowed;pointer-events:none}
+  .sound-icon{font-size:26px;filter:grayscale(1);transition:filter 0.2s}
+  .sound-btn:hover .sound-icon,.sound-btn.playing .sound-icon{filter:grayscale(0)}
+  .sound-name{font-family:var(--font-ui);font-size:12px;font-weight:700;text-align:center;color:var(--text);word-break:break-word;line-height:1.3}
+  .sound-btn.playing .sound-name{color:var(--accent2)}
+  .pad-num{position:absolute;top:6px;right:8px;font-family:var(--font-mono);font-size:9px;color:var(--muted)}
+
+  .empty-state{grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--text-dim);font-family:var(--font-mono)}
+  .empty-state .big{font-size:48px;margin-bottom:16px}
+  .empty-state p{font-size:12px;line-height:2}
+
+  /* Toast */
+  #toast{position:fixed;bottom:24px;right:24px;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 18px;font-family:var(--font-mono);font-size:12px;color:var(--text);box-shadow:0 4px 24px rgba(0,0,0,0.5);transform:translateY(80px);opacity:0;transition:all 0.3s;z-index:100;max-width:300px}
+  #toast.show{transform:translateY(0);opacity:1}
+  #toast.ok{border-color:var(--accent);color:var(--accent)}
+  #toast.err{border-color:var(--danger);color:var(--danger)}
+
+  /* Admin modal */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:none;align-items:center;justify-content:center;z-index:200;backdrop-filter:blur(4px)}
+  .modal.show{display:flex}
+  .modal-box{background:var(--panel);border:1px solid var(--border);border-radius:10px;width:min(90vw,700px);max-height:85vh;overflow-y:auto;padding:24px}
+  .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+  .modal-title{font-size:18px;font-weight:900;letter-spacing:2px;color:var(--accent);text-shadow:var(--glow)}
+  .close-btn{background:transparent;border:none;color:var(--text-dim);font-size:24px;cursor:pointer;padding:0;width:32px;height:32px;display:grid;place-items:center}
+  .close-btn:hover{color:var(--danger)}
+
+  .server-cfg{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px}
+  .server-cfg-header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+  .server-icon{width:32px;height:32px;border-radius:50%;background:var(--muted);display:grid;place-items:center;font-weight:700}
+  .server-icon img{width:100%;height:100%;border-radius:50%}
+  .server-cfg-name{font-weight:700;font-size:15px}
+  .server-cfg-meta{font-family:var(--font-mono);font-size:10px;color:var(--text-dim)}
+  .switch{display:flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:11px;color:var(--text-dim);cursor:pointer;margin:10px 0}
+  .switch input{width:18px;height:18px;accent-color:var(--accent)}
+  .user-list{margin-top:10px}
+  .user-row{display:flex;gap:6px;margin-bottom:6px}
+  .user-input{flex:1;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:6px 10px;font-family:var(--font-mono);font-size:11px}
+  .user-input:focus{outline:none;border-color:var(--accent)}
+  .btn-sm{padding:6px 10px;font-size:10px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;font-family:var(--font-mono);letter-spacing:1px}
+  .btn-sm.add{color:var(--accent);border-color:var(--accent)}
+  .btn-sm.del{color:var(--danger);border-color:var(--danger)}
+  .btn-sm:hover{filter:brightness(1.3)}
+  .btn-save{background:var(--accent);color:#000;border:none;padding:8px 16px;border-radius:6px;font-family:var(--font-ui);font-weight:900;letter-spacing:1px;cursor:pointer;margin-top:10px}
+
+  /* Sounds manager */
+  .upload-zone{border:2px dashed var(--border);border-radius:10px;padding:30px;text-align:center;cursor:pointer;transition:all 0.2s;margin-bottom:16px;background:var(--bg)}
+  .upload-zone:hover,.upload-zone.drag{border-color:#ffaa00;background:rgba(255,170,0,0.05)}
+  .upload-icon{font-size:42px;margin-bottom:10px;filter:grayscale(0.3)}
+  .upload-text{font-family:var(--font-ui);font-size:14px;font-weight:600;color:var(--text)}
+  .upload-link{color:#ffaa00;text-decoration:underline}
+  .upload-hint{font-family:var(--font-mono);font-size:10px;color:var(--text-dim);margin-top:6px;letter-spacing:1px}
+
+  #uploadResults{margin-bottom:16px}
+  .ur-item{padding:8px 12px;border-radius:6px;margin-bottom:4px;font-family:var(--font-mono);font-size:11px;display:flex;justify-content:space-between;gap:10px}
+  .ur-item.ok{background:rgba(0,255,136,0.1);color:var(--accent);border:1px solid rgba(0,255,136,0.3)}
+  .ur-item.err{background:rgba(255,59,92,0.1);color:var(--danger);border:1px solid rgba(255,59,92,0.3)}
+
+  .sounds-list-header{display:flex;justify-content:space-between;align-items:center;padding:8px 0 12px;border-bottom:1px solid var(--border);margin-bottom:8px}
+  .sound-row{display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;margin-bottom:6px}
+  .sound-row-icon{color:var(--accent2);font-size:18px}
+  .sound-row-name{flex:1;font-family:var(--font-mono);font-size:12px;color:var(--text);word-break:break-all}
+  .sound-row-name input{width:100%;background:var(--panel);color:var(--text);border:1px solid var(--accent2);border-radius:4px;padding:4px 8px;font-family:var(--font-mono);font-size:12px}
+  .sound-row-size{font-family:var(--font-mono);font-size:10px;color:var(--text-dim);white-space:nowrap}
+  .sound-row .btn-sm{flex-shrink:0}
+</style>
+</head>
+<body>
+
+<!-- Banner istanza (mostrato solo se INSTANCE_NAME è settato) -->
+<div class="instance-badge" id="instanceBadge"></div>
+
+<!-- Header -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">⚡</div>
+    <div>
+      <div class="logo-text">SOUNDBOARD</div>
+      <div class="logo-sub">v6 · DOCKERIZED</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="bot-status">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="botName">Online</span>
+    </div>
+    <div class="vu-bars hidden" id="vuBars">
+      <div class="vu-bar"></div><div class="vu-bar"></div><div class="vu-bar"></div><div class="vu-bar"></div><div class="vu-bar"></div>
+    </div>
+    <div class="user-info">
+      <div class="user-avatar" id="userAvatar">?</div>
+      <span class="user-name" id="userName">—<span id="ownerBadge" style="display:none" class="owner-badge">OWNER</span></span>
+      <button class="btn-icon" id="btnHotkeys" onclick="toggleHotkeys()" title="Hotkey attive/disattive">⌨</button>
+      <button class="btn-icon" id="btnAdmin" onclick="openAdmin()" title="Pannello Admin" style="display:none">⚙</button>
+      <button class="btn-icon danger" onclick="logout()" title="Logout">⏻</button>
+    </div>
+  </div>
+</header>
+
+<!-- Server selector -->
+<div class="server-bar">
+  <span class="server-label">// Server Discord:</span>
+  <div class="server-wrap">
+    <select class="server-select" id="serverSelect" onchange="onServerChange()">
+      <option value="">— nessun server —</option>
+    </select>
+  </div>
+  <span class="server-label" id="serverHelp"></span>
+</div>
+
+<!-- Main -->
+<main>
+  <aside>
+    <div class="section">
+      <div class="section-title">// Canale Vocale</div>
+      <div class="ch-wrap">
+        <select class="ch" id="channelSelect">
+          <option value="">— seleziona —</option>
+        </select>
+      </div>
+      <button class="btn btn-connect" id="btnConnect" onclick="connectChannel()">⚡ Connetti</button>
+      <button class="btn btn-disconnect" id="btnDisconnect" onclick="disconnectChannel()" style="display:none">✕ Disconnetti</button>
+      <div class="conn-info">
+        SERVER › <span class="val" id="infoGuild">—</span><br>
+        CANALE › <span class="val" id="infoChannel">—</span>
+      </div>
+    </div>
+
+    <div class="now-playing">
+      <div class="np-label">// In riproduzione</div>
+      <div class="np-name idle" id="npName">— idle —</div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">// Controlli</div>
+      <button class="btn btn-stop" onclick="stopSound()">⏹ Stop</button>
+      <button class="btn btn-reload" onclick="reloadSounds()">↻ Ricarica Suoni</button>
+      <button class="btn btn-manage" onclick="openSoundsManager()">🎵 Gestisci Suoni</button>
+    </div>
+  </aside>
+
+  <div class="grid-area">
+    <div class="grid-header">
+      <span class="grid-title">// Sound Pads</span>
+      <span class="grid-count" id="gridCount">0 SUONI</span>
+    </div>
+    <div class="sounds-grid" id="soundsGrid">
+      <div class="empty-state">
+        <div class="big">🎵</div>
+        <p>Seleziona un server dal menu in alto per iniziare.</p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div id="toast"></div>
+
+<!-- Admin Modal -->
+<div class="modal" id="adminModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">⚙ PANNELLO ADMIN</div>
+      <button class="close-btn" onclick="closeAdmin()">×</button>
+    </div>
+    <div id="adminContent">Caricamento...</div>
+  </div>
+</div>
+
+<!-- Sounds Manager Modal -->
+<div class="modal" id="soundsModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">🎵 GESTIONE SUONI <span id="soundsModalGuild" style="font-size:11px;color:var(--text-dim);font-family:var(--font-mono);margin-left:10px"></span></div>
+      <button class="close-btn" onclick="closeSoundsManager()">×</button>
+    </div>
+
+    <div class="upload-zone" id="uploadZone">
+      <div class="upload-icon">📤</div>
+      <div class="upload-text">Trascina qui i file audio o <span class="upload-link">sfoglia</span></div>
+      <div class="upload-hint">.mp3 · .wav · .ogg · .flac &nbsp;·&nbsp; max 10 MB per file &nbsp;·&nbsp; max 10 file</div>
+      <input type="file" id="fileInput" accept=".mp3,.wav,.ogg,.flac" multiple style="display:none">
+    </div>
+
+    <div id="uploadResults"></div>
+
+    <div class="sounds-list-header">
+      <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim)">// File nel server</span>
+      <span id="soundsListCount" style="font-family:var(--font-mono);font-size:11px;color:var(--accent)">0 file</span>
+    </div>
+    <div id="soundsList"></div>
+  </div>
+</div>
+
+<script>
+let state = { user: null, guilds: [], currentGuild: null, status: null };
+let toastTimer;
+
+function toast(msg, type='ok'){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>el.className='', 2500);
+}
+
+async function api(method, url, body){
+  const res = await fetch(url, {
+    method,
+    headers: body ? {'Content-Type':'application/json'} : {},
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (res.status === 401) { location.href = '/login'; return null; }
+  return res.json();
+}
+
+async function logout(){
+  await fetch('/api/logout', {method:'POST'});
+  location.href = '/login';
+}
+
+// ── Initial load ────────────────────────────────────────────────────────
+async function init(){
+  const me = await api('GET', '/api/me');
+  if (!me) return;
+  state.user = me.user;
+  state.guilds = me.accessibleGuilds;
+
+  // Banner di istanza (TEST/PROD)
+  if (me.instance) {
+    const badge = document.getElementById('instanceBadge');
+    badge.textContent = `▲ AMBIENTE ${me.instance} ▲`;
+    badge.className = 'instance-badge show ' + (me.instance.toLowerCase() === 'prod' ? 'prod' : 'test');
+    document.body.classList.add('has-instance-badge');
+  }
+
+  // User info
+  const avEl = document.getElementById('userAvatar');
+  if (me.user.avatar) {
+    avEl.innerHTML = `<img src="https://cdn.discordapp.com/avatars/${me.user.id}/${me.user.avatar}.png?size=64" alt="avatar">`;
+  } else {
+    avEl.textContent = me.user.username[0].toUpperCase();
+  }
+  document.getElementById('userName').firstChild.textContent = me.user.globalName + ' ';
+  if (me.user.isOwner) {
+    document.getElementById('ownerBadge').style.display = 'inline-block';
+    document.getElementById('btnAdmin').style.display = '';
+  }
+
+  // Popola selettore server
+  const sel = document.getElementById('serverSelect');
+  sel.innerHTML = '<option value="">— seleziona server —</option>';
+  if (state.guilds.length === 0) {
+    document.getElementById('serverHelp').textContent = '· Nessun server accessibile · contatta l\'owner per essere aggiunto.';
+  } else {
+    for (const g of state.guilds) {
+      const opt = document.createElement('option');
+      opt.value = g.id;
+      opt.textContent = g.name;
+      sel.appendChild(opt);
+    }
+    // Auto-seleziona il primo
+    if (state.guilds.length >= 1) {
+      sel.value = state.guilds[0].id;
+      onServerChange();
+    }
+  }
+}
+
+async function onServerChange(){
+  const guildId = document.getElementById('serverSelect').value;
+  state.currentGuild = guildId;
+  if (!guildId) {
+    renderGrid([], null, false);
+    document.getElementById('infoGuild').textContent = '—';
+    document.getElementById('infoChannel').textContent = '—';
+    return;
+  }
+  await pollStatus();
+}
+
+// ── Polling ─────────────────────────────────────────────────────────────
+async function pollStatus(){
+  if (!state.currentGuild) return;
+  try {
+    const s = await api('GET', '/api/status?guildId=' + state.currentGuild);
+    if (s && !s.error) {
+      state.status = s;
+      updateUI(s);
+    }
+  } catch (e) { console.error(e); }
+}
+
+function updateUI(s){
+  const dot = document.getElementById('statusDot');
+  const vu = document.getElementById('vuBars');
+  dot.className = 'status-dot ' + (s.playing ? 'playing' : 'online');
+  vu.className = 'vu-bars ' + (s.playing ? '' : 'hidden');
+
+  document.getElementById('infoGuild').textContent = s.guildName || '—';
+
+  const chEl = document.getElementById('infoChannel');
+  if (s.currentChannel) {
+    chEl.textContent = s.currentChannel.name;
+    chEl.className = 'val blue';
+  } else {
+    chEl.textContent = '—';
+    chEl.className = 'val';
+  }
+
+  document.getElementById('btnConnect').style.display = s.connected ? 'none' : '';
+  document.getElementById('btnDisconnect').style.display = s.connected ? '' : 'none';
+
+  // Now playing
+  const np = document.getElementById('npName');
+  if (s.playing && s.lastPlayed) {
+    np.textContent = '▶ ' + s.lastPlayed;
+    np.className = 'np-name';
+  } else {
+    np.textContent = '— idle —';
+    np.className = 'np-name idle';
+  }
+
+  // Canali
+  const chSel = document.getElementById('channelSelect');
+  const curCh = chSel.value;
+  chSel.innerHTML = '<option value="">— seleziona —</option>';
+  for (const c of (s.channels || [])) {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = `# ${c.name} (${c.members}👤)`;
+    chSel.appendChild(opt);
+  }
+  if (curCh) chSel.value = curCh;
+
+  renderGrid(s.sounds || [], s.lastPlayed, s.connected);
+}
+
+function renderGrid(sounds, lastPlayed, connected){
+  const grid = document.getElementById('soundsGrid');
+  document.getElementById('gridCount').textContent = sounds.length + ' SUONI';
+  if (sounds.length === 0) {
+    grid.innerHTML = `<div class="empty-state">
+      <div class="big">📁</div>
+      <p>Nessun suono per questo server.<br>Clicca <strong>"🎵 Gestisci Suoni"</strong> per caricare file audio.</p>
+    </div>`;
+    return;
+  }
+  const icons = ['🔊','🥁','🎵','💥','😂','👏','🎺','🔔','⚡','🎸','🎤','🎹','🎲','🔥','💣','🚨'];
+  grid.innerHTML = '';
+  sounds.forEach((name, i) => {
+    const btn = document.createElement('div');
+    const playing = name === lastPlayed && state.status?.playing;
+    btn.className = 'sound-btn' + (playing ? ' playing' : '') + (!connected ? ' disabled' : '');
+    btn.dataset.soundName = name;
+    btn.onclick = (e) => {
+      if (e.target.classList.contains('pad-hk-btn')) return;
+      playSound(name);
+    };
+    const hk = hotkeys.getFor(state.currentGuild, name);
+    const hkBadge = hk ? `<span class="pad-hotkey" title="Hotkey: ${escapeHtmlAttr(hk)}">${escapeHtmlAttr(hk)}</span>` : '';
+    const hkBtnClass = hk ? 'pad-hk-btn assigned' : 'pad-hk-btn';
+    btn.innerHTML = `<span class="pad-num">${String(i+1).padStart(2,'0')}</span>
+      ${hkBadge}
+      <span class="sound-icon">${icons[i % icons.length]}</span>
+      <span class="sound-name">${escapeHtmlAttr(name)}</span>
+      <button class="${hkBtnClass}" onclick="event.stopPropagation(); captureHotkey(this, '${escapeHtmlAttr(name).replace(/'/g, "\\'")}')" title="Assegna hotkey">⌨</button>`;
+    grid.appendChild(btn);
+  });
+}
+
+function escapeHtmlAttr(s){
+  return String(s).replace(/[&<>"']/g, (c) => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+
+// ── Actions ─────────────────────────────────────────────────────────────
+async function connectChannel(){
+  const channelId = document.getElementById('channelSelect').value;
+  if (!channelId) return toast('Seleziona un canale!','err');
+  const btn = document.getElementById('btnConnect');
+  btn.disabled = true; btn.textContent = '⏳ Connessione...';
+  const res = await api('POST','/api/join',{guildId: state.currentGuild, channelId});
+  btn.disabled = false; btn.textContent = '⚡ Connetti';
+  if (res?.ok) { toast('Connesso a #'+res.channel.name); pollStatus(); }
+  else toast(res?.error || 'Errore', 'err');
+}
+
+async function disconnectChannel(){
+  await api('POST','/api/disconnect',{guildId: state.currentGuild});
+  toast('Disconnesso'); pollStatus();
+}
+
+async function playSound(name){
+  if (!state.status?.connected) return toast('Connettiti prima a un canale!','err');
+  const res = await api('POST','/api/play',{guildId: state.currentGuild, sound:name});
+  if (res?.ok) { toast('▶ '+name); pollStatus(); }
+  else toast(res?.error || 'Errore','err');
+}
+
+async function stopSound(){
+  await api('POST','/api/stop',{guildId: state.currentGuild});
+  toast('⏹ Stop'); pollStatus();
+}
+
+async function reloadSounds(){
+  const res = await api('POST','/api/reload',{guildId: state.currentGuild});
+  if (res?.ok) { toast(`↻ ${res.count} suoni caricati`); pollStatus(); }
+}
+
+// ── Admin ───────────────────────────────────────────────────────────────
+async function openAdmin(){
+  document.getElementById('adminModal').classList.add('show');
+  const content = document.getElementById('adminContent');
+  content.innerHTML = '<p style="color:var(--text-dim);font-family:var(--font-mono)">Caricamento server...</p>';
+  const res = await api('GET','/api/admin/servers');
+  if (!res) return;
+  renderAdmin(res.servers);
+}
+
+function closeAdmin(){ document.getElementById('adminModal').classList.remove('show'); }
+
+function renderAdmin(servers){
+  const content = document.getElementById('adminContent');
+  if (servers.length === 0) {
+    content.innerHTML = '<p style="color:var(--text-dim)">Il bot non è in nessun server. Invita il bot su un server Discord per vederlo qui.</p>';
+    return;
+  }
+  content.innerHTML = '';
+  for (const s of servers) {
+    const div = document.createElement('div');
+    div.className = 'server-cfg';
+    const iconHtml = s.iconURL ?
+      `<img src="${s.iconURL}" alt="">` :
+      s.name[0].toUpperCase();
+    const usersList = (s.allowedUsers || []).map(uid =>
+      `<div class="user-row">
+        <input class="user-input" value="${uid}" readonly>
+        <button class="btn-sm del" onclick="adminRemUser('${s.id}','${uid}')">× Rimuovi</button>
+      </div>`
+    ).join('');
+    div.innerHTML = `
+      <div class="server-cfg-header">
+        <div class="server-icon">${iconHtml}</div>
+        <div>
+          <div class="server-cfg-name">${s.name}</div>
+          <div class="server-cfg-meta">${s.memberCount} membri · id: ${s.id}</div>
+        </div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" ${s.allowAllMembers ? 'checked' : ''} onchange="adminToggleAll('${s.id}',this.checked)">
+        Permetti a TUTTI i membri del server
+      </label>
+      <div class="user-list">
+        <div class="section-title" style="margin:12px 0 6px 0;font-size:9px">Utenti autorizzati (User ID)</div>
+        ${usersList || '<div style="color:var(--text-dim);font-family:var(--font-mono);font-size:11px;padding:6px">Nessun utente autorizzato</div>'}
+        <div class="user-row">
+          <input class="user-input" id="newUser_${s.id}" placeholder="Incolla User ID Discord">
+          <button class="btn-sm add" onclick="adminAddUser('${s.id}')">+ Aggiungi</button>
+        </div>
+      </div>
+    `;
+    content.appendChild(div);
+  }
+}
+
+async function adminAddUser(guildId){
+  const input = document.getElementById('newUser_' + guildId);
+  const userId = input.value.trim();
+  if (!/^\d{17,20}$/.test(userId)) return toast('User ID non valido','err');
+  const r = await api('POST', `/api/admin/server/${guildId}/user/add`, {userId});
+  if (r?.ok) { toast('Utente aggiunto'); openAdmin(); }
+  else toast(r?.error || 'Errore','err');
+}
+
+async function adminRemUser(guildId, userId){
+  const r = await api('POST', `/api/admin/server/${guildId}/user/remove`, {userId});
+  if (r?.ok) { toast('Utente rimosso'); openAdmin(); }
+}
+
+async function adminToggleAll(guildId, value){
+  // ricarichiamo la configurazione completa preservando gli utenti
+  const res = await api('GET','/api/admin/servers');
+  const s = res.servers.find(x => x.id === guildId);
+  await api('POST', `/api/admin/server/${guildId}/configure`, {
+    allowedUsers: s.allowedUsers,
+    allowAllMembers: value,
+  });
+  toast(value ? 'Aperto a tutti i membri' : 'Solo utenti autorizzati');
+}
+
+// ── Sounds Manager ──────────────────────────────────────────────────────
+function openSoundsManager(){
+  if (!state.currentGuild) return toast('Seleziona prima un server', 'err');
+  const guildName = state.status?.guildName || '';
+  document.getElementById('soundsModalGuild').textContent = guildName ? '// ' + guildName : '';
+  document.getElementById('uploadResults').innerHTML = '';
+  document.getElementById('soundsModal').classList.add('show');
+  loadSoundsList();
+  setupUploadZone();
+}
+
+function closeSoundsManager(){
+  document.getElementById('soundsModal').classList.remove('show');
+  document.getElementById('uploadResults').innerHTML = '';
+}
+
+async function loadSoundsList(){
+  const listEl = document.getElementById('soundsList');
+  listEl.innerHTML = '<div style="color:var(--text-dim);font-family:var(--font-mono);font-size:11px;padding:10px">Caricamento...</div>';
+  const res = await api('GET', '/api/sounds/list?guildId=' + state.currentGuild);
+  if (!res) return;
+  if (res.error) { listEl.innerHTML = `<div style="color:var(--danger);font-size:12px">❌ ${res.error}</div>`; return; }
+
+  document.getElementById('soundsListCount').textContent = res.files.length + ' file';
+  if (res.files.length === 0) {
+    listEl.innerHTML = '<div style="color:var(--text-dim);font-family:var(--font-mono);font-size:11px;padding:12px;text-align:center">Nessun suono. Carica il primo file qui sopra ↑</div>';
+    return;
+  }
+
+  listEl.innerHTML = '';
+  for (const f of res.files) {
+    const row = document.createElement('div');
+    row.className = 'sound-row';
+    const kb = (f.size / 1024).toFixed(1);
+    row.innerHTML = `
+      <span class="sound-row-icon">🔊</span>
+      <span class="sound-row-name" data-filename="${escapeHtml(f.name)}" ondblclick="startRename(this)">${escapeHtml(f.name)}</span>
+      <span class="sound-row-size">${kb} KB</span>
+      <button class="btn-sm" onclick="startRename(this.parentElement.querySelector('.sound-row-name'))" title="Rinomina">✏️</button>
+      <button class="btn-sm del" onclick="deleteSoundFile('${escapeHtml(f.name).replace(/'/g, "\\'")}')">🗑️</button>
+    `;
+    listEl.appendChild(row);
+  }
+}
+
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, (c) => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+
+function startRename(span){
+  const oldName = span.dataset.filename;
+  const ext = oldName.substring(oldName.lastIndexOf('.'));
+  const baseName = oldName.substring(0, oldName.lastIndexOf('.'));
+
+  span.innerHTML = `<input type="text" value="${escapeHtml(baseName)}" onkeydown="handleRenameKey(event, this, '${escapeHtml(oldName).replace(/'/g, "\\'")}', '${ext}')" onblur="cancelRename(this, '${escapeHtml(oldName).replace(/'/g, "\\'")}')">`;
+  const input = span.querySelector('input');
+  input.focus();
+  input.select();
+}
+
+function handleRenameKey(event, input, oldName, ext){
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    const newBase = input.value.trim();
+    if (!newBase || newBase + ext === oldName) { cancelRename(input, oldName); return; }
+    doRename(oldName, newBase + ext);
+  } else if (event.key === 'Escape') {
+    cancelRename(input, oldName);
+  }
+}
+
+function cancelRename(input, oldName){
+  const span = input.parentElement;
+  if (span) span.innerHTML = escapeHtml(oldName);
+}
+
+async function doRename(oldName, newName){
+  const r = await api('POST', '/api/sounds/rename', {
+    guildId: state.currentGuild, oldName, newName
+  });
+  if (r?.ok) { toast('✏️ Rinominato'); loadSoundsList(); pollStatus(); }
+  else toast(r?.error || 'Errore', 'err');
+}
+
+async function deleteSoundFile(filename){
+  if (!confirm(`Eliminare "${filename}"?\nQuesta operazione non è annullabile.`)) return;
+  const r = await api('POST', '/api/sounds/delete', {
+    guildId: state.currentGuild, filename
+  });
+  if (r?.ok) { toast('🗑️ Eliminato'); loadSoundsList(); pollStatus(); }
+  else toast(r?.error || 'Errore', 'err');
+}
+
+let uploadZoneInitialized = false;
+function setupUploadZone(){
+  if (uploadZoneInitialized) return;
+  uploadZoneInitialized = true;
+
+  const zone = document.getElementById('uploadZone');
+  const input = document.getElementById('fileInput');
+
+  zone.onclick = () => input.click();
+  input.onchange = (e) => { if (e.target.files.length) uploadFiles(e.target.files); input.value = ''; };
+
+  zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('drag'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+  zone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    zone.classList.remove('drag');
+    if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files);
+  });
+}
+
+async function uploadFiles(fileList){
+  const files = [...fileList];
+  if (files.length > 10) return toast('Massimo 10 file per volta', 'err');
+
+  const fd = new FormData();
+  for (const f of files) fd.append('files', f);
+  fd.append('guildId', state.currentGuild);
+
+  const resultsEl = document.getElementById('uploadResults');
+  resultsEl.innerHTML = '<div class="ur-item" style="background:var(--bg);color:var(--accent2);border:1px solid var(--border)">⏳ Upload in corso...</div>';
+
+  try {
+    const res = await fetch('/api/sounds/upload?guildId=' + state.currentGuild, {
+      method: 'POST',
+      body: fd,
+    });
+    const data = await res.json();
+
+    resultsEl.innerHTML = '';
+    if (data.error) {
+      resultsEl.innerHTML = `<div class="ur-item err">❌ ${escapeHtml(data.error)}</div>`;
+      return;
+    }
+    for (const r of (data.results || [])) {
+      const div = document.createElement('div');
+      div.className = 'ur-item ' + (r.ok ? 'ok' : 'err');
+      div.innerHTML = r.ok
+        ? `<span>✅ ${escapeHtml(r.file)}</span><span>${(r.size/1024).toFixed(1)} KB</span>`
+        : `<span>❌ ${escapeHtml(r.file)}</span><span>${escapeHtml(r.error)}</span>`;
+      resultsEl.appendChild(div);
+    }
+    toast(`${data.uploaded} caricati · ${data.failed} falliti`, data.failed ? 'err' : 'ok');
+    loadSoundsList();
+    pollStatus();
+  } catch (err) {
+    resultsEl.innerHTML = `<div class="ur-item err">❌ ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+// ── Hotkeys module ──────────────────────────────────────────────────────
+const hotkeys = {
+  STORAGE_KEY: 'soundboard_hotkeys_v1',
+  ENABLED_KEY: 'soundboard_hotkeys_enabled',
+  data: {}, // { guildId: { soundName: "Ctrl+Shift+1" } }
+  enabled: true,
+  capturing: null, // { soundName, pad } se stiamo catturando
+
+  load(){
+    try {
+      this.data = JSON.parse(localStorage.getItem(this.STORAGE_KEY) || '{}');
+    } catch { this.data = {}; }
+    const e = localStorage.getItem(this.ENABLED_KEY);
+    this.enabled = e === null ? true : (e === 'true');
+  },
+  save(){ localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.data)); },
+  saveEnabled(){ localStorage.setItem(this.ENABLED_KEY, String(this.enabled)); },
+
+  getFor(guildId, soundName){
+    return this.data[guildId]?.[soundName] || null;
+  },
+  set(guildId, soundName, combo){
+    if (!this.data[guildId]) this.data[guildId] = {};
+    // Rimuovi la stessa combo se assegnata ad altri suoni nello stesso server
+    const existing = Object.entries(this.data[guildId]).find(([n, c]) => c === combo && n !== soundName);
+    let replaced = null;
+    if (existing) {
+      replaced = existing[0];
+      delete this.data[guildId][existing[0]];
+    }
+    this.data[guildId][soundName] = combo;
+    this.save();
+    return replaced;
+  },
+  remove(guildId, soundName){
+    if (this.data[guildId]) {
+      delete this.data[guildId][soundName];
+      this.save();
+    }
+  },
+  findSoundByCombo(guildId, combo){
+    const g = this.data[guildId] || {};
+    return Object.entries(g).find(([, c]) => c === combo)?.[0] || null;
+  },
+};
+
+function comboFromEvent(e){
+  const parts = [];
+  if (e.ctrlKey) parts.push('Ctrl');
+  if (e.altKey) parts.push('Alt');
+  if (e.shiftKey) parts.push('Shift');
+  if (e.metaKey) parts.push('Meta');
+
+  let key = e.key;
+  // Tasti speciali da non normalizzare ma mostrare pulitamente
+  if (key === ' ') key = 'Space';
+  if (key === 'Escape') return null; // Esc serve per annullare la cattura
+  // Ignora pressione solo di modificatori
+  if (['Control','Alt','Shift','Meta'].includes(key)) return null;
+  // Lettere: maiuscole per leggibilità
+  if (key.length === 1) key = key.toUpperCase();
+
+  parts.push(key);
+  return parts.join('+');
+}
+
+function toggleHotkeys(){
+  hotkeys.enabled = !hotkeys.enabled;
+  hotkeys.saveEnabled();
+  updateHotkeyToggleUI();
+  toast(hotkeys.enabled ? '⌨ Hotkey attive' : '⌨ Hotkey disattivate');
+}
+
+function updateHotkeyToggleUI(){
+  const btn = document.getElementById('btnHotkeys');
+  if (hotkeys.enabled) {
+    btn.classList.add('active', 'hotkey');
+    btn.title = 'Hotkey attive (click per disattivare)';
+  } else {
+    btn.classList.remove('active', 'hotkey');
+    btn.title = 'Hotkey disattivate (click per attivare)';
+  }
+}
+
+function captureHotkey(btnEl, soundName){
+  // Se già in cattura, annulla
+  if (hotkeys.capturing) {
+    cancelCapture();
+    return;
+  }
+
+  // Se il suono ha già una hotkey, chiedi: sostituire o rimuovere?
+  const existing = hotkeys.getFor(state.currentGuild, soundName);
+  if (existing) {
+    if (confirm(`"${soundName}" ha già la hotkey "${existing}".\n\nOK = rimuovi  ·  Annulla = assegnane una nuova`)) {
+      hotkeys.remove(state.currentGuild, soundName);
+      toast(`⌨ Hotkey rimossa da "${soundName}"`);
+      pollStatus();
+      return;
+    }
+  }
+
+  // Avvia cattura
+  const pad = btnEl.closest('.sound-btn');
+  const badge = pad.querySelector('.pad-hotkey');
+  hotkeys.capturing = { soundName, pad };
+
+  // Mostra stato cattura sul pad
+  let capBadge = badge;
+  if (!capBadge) {
+    capBadge = document.createElement('span');
+    capBadge.className = 'pad-hotkey capturing';
+    pad.appendChild(capBadge);
+  } else {
+    capBadge.classList.add('capturing');
+  }
+  capBadge.textContent = 'premi...';
+
+  toast('⌨ Premi la combinazione (Esc per annullare)');
+}
+
+function cancelCapture(){
+  if (!hotkeys.capturing) return;
+  const { pad, soundName } = hotkeys.capturing;
+  hotkeys.capturing = null;
+  // Ripristina badge
+  const badge = pad.querySelector('.pad-hotkey');
+  const existing = hotkeys.getFor(state.currentGuild, soundName);
+  if (badge) {
+    if (existing) {
+      badge.classList.remove('capturing');
+      badge.textContent = existing;
+    } else {
+      badge.remove();
+    }
+  }
+}
+
+function handleHotkeyCapture(e){
+  if (!hotkeys.capturing) return false;
+  if (e.key === 'Escape') {
+    cancelCapture();
+    toast('Cattura annullata');
+    e.preventDefault();
+    return true;
+  }
+  const combo = comboFromEvent(e);
+  if (!combo) return true; // solo modificatori premuti, attendi il tasto vero
+  e.preventDefault();
+
+  const { soundName, pad } = hotkeys.capturing;
+  const replaced = hotkeys.set(state.currentGuild, soundName, combo);
+  hotkeys.capturing = null;
+
+  if (replaced) {
+    toast(`⌨ ${combo} → "${soundName}" (sostituita da "${replaced}")`);
+  } else {
+    toast(`⌨ ${combo} → "${soundName}"`);
+  }
+  pollStatus(); // ridisegna i pad con i badge aggiornati
+  return true;
+}
+
+function isTypingInInput(){
+  const el = document.activeElement;
+  if (!el) return false;
+  const tag = el.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable;
+}
+
+function handleHotkeyPress(e){
+  // Prima gestiamo la cattura (indipendente da enabled)
+  if (handleHotkeyCapture(e)) return;
+
+  if (!hotkeys.enabled) return;
+  if (isTypingInInput()) return;
+
+  // ESC = stop globale
+  if (e.key === 'Escape') {
+    if (state.currentGuild && state.status?.connected) {
+      stopSound();
+      e.preventDefault();
+    }
+    return;
+  }
+
+  const combo = comboFromEvent(e);
+  if (!combo) return;
+
+  const sound = hotkeys.findSoundByCombo(state.currentGuild, combo);
+  if (!sound) return;
+
+  e.preventDefault();
+
+  // Verifica che il suono esista ancora
+  if (!state.status?.sounds?.includes(sound)) {
+    toast(`⌨ "${sound}" non è più nella lista`, 'err');
+    return;
+  }
+
+  // Effetto visivo sul pad
+  const pad = document.querySelector(`.sound-btn[data-sound-name="${CSS.escape(sound)}"]`);
+  if (pad) {
+    pad.classList.remove('hk-fire');
+    void pad.offsetWidth; // restart animation
+    pad.classList.add('hk-fire');
+  }
+
+  playSound(sound);
+}
+
+document.addEventListener('keydown', handleHotkeyPress);
+
+// Init
+hotkeys.load();
+updateHotkeyToggleUI();
+init();
+setInterval(pollStatus, 3000);
+</script>
+</body>
+</html>
