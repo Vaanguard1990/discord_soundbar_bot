@@ -7,7 +7,7 @@
     "start": "node index.js"
   },
   "dependencies": {
-    "@discordjs/voice": "1.0.0-dev.1772884937-84b85f4c9",
+    "@discordjs/voice": "^0.19.2",
     "@noble/ciphers": "^2.2.0",
     "@stablelib/xchacha20poly1305": "^2.0.1",
     "discord.js": "^14.15.0",
