@@ -23,6 +23,10 @@ Thumbs.db
 sounds/*
 !sounds/.gitkeep
 
+# Configurazione runtime dei server (generata dal bot)
+config/*
+!config/.gitkeep
+
 # Build / cache
 *.pid
 .cache/

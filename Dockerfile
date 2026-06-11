@@ -1,9 +1,10 @@
 # Dockerfile per Discord Soundboard Bot
 FROM node:20-bookworm-slim
 
-# Dipendenze sistema (ffmpeg per audio + tini per gestione segnali)
+# Dipendenze sistema (ffmpeg per audio, git per deploy.sh, tini per gestione segnali)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
+    git \
     ca-certificates \
     tini \
     && rm -rf /var/lib/apt/lists/*

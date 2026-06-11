@@ -479,6 +479,10 @@ sodium.ready.then(() => {
   });
 
   // ─── Discord Bot ─────────────────────────────────────────────────────────
+  client.on("error", (err) => {
+    console.error("❌ Errore client Discord:", err.message);
+  });
+
   client.once("clientReady", () => {
     console.log(`✅ Bot online come ${client.user.tag}`);
     console.log(`   Presente in ${client.guilds.cache.size} server:`);
@@ -525,5 +529,11 @@ sodium.ready.then(() => {
     });
   }
 
-  client.login(process.env.DISCORD_TOKEN);
+  client.login(process.env.DISCORD_TOKEN).catch((err) => {
+    console.error("❌ Login Discord fallito (token non valido?):", err.message);
+    process.exit(1);
+  });
+}).catch((err) => {
+  console.error("❌ Inizializzazione sodium fallita:", err);
+  process.exit(1);
 });
